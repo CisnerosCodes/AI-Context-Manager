@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Context Manager</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>Contexts</h1>
+    <button id="addBtn">+ Add</button>
+  </header>
+  <section id="list"></section>
+
+  <dialog id="editorDialog">
+    <form method="dialog" id="editorForm">
+      <input type="text" id="ctxTitle" placeholder="Title" required />
+      <textarea id="ctxBody" placeholder="Context text" rows="6" required></textarea>
+      <menu>
+        <button value="cancel">Cancel</button>
+        <button id="saveBtn" value="default">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
