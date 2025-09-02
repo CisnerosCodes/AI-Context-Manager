@@ -5,6 +5,7 @@ A Chrome extension that helps you save, organize, and inject reusable context bl
 ## Features
 
 - **Context Library**: Create, edit, delete reusable context snippets.
+- **Copy to Clipboard**: Quickly copy any context's full text to clipboard.
 - **One-Click Injection**: Insert a saved context into supported chat inputs.
 - **Inline Dropdown**: Access contexts directly inside the AI site (Context ▼ button).
 - **Recency Ordering**: Auto-sorts by most recently used.
@@ -36,7 +37,8 @@ After installation, the extension provides two ways to use your contexts:
 2. Click **+ Add** to create a new context.
 3. Give your context a title and enter the text content.
 4. Save and your context will appear in the list.
-5. Use **Edit** or **Delete** to manage existing contexts.
+5. Use **Copy** to copy the full context text to your clipboard.
+6. Use **Edit** or **Delete** to manage existing contexts.
 
 ### Inline Dropdown
 1. Open a supported AI chat site.
