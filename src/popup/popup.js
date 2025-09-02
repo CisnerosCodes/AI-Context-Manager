@@ -38,16 +38,7 @@ async function copyToClipboard(text) {
   }
 }
 
-// Message handling for content script
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "REQUEST_CONTEXTS") {
-    getContexts().then(sendResponse);
-    return true;
-  }
-  if (msg.type === "TOUCH_CONTEXT") {
-    touchContext(msg.id);
-  }
-});
+// Message handling for content script - removed since background.js now handles these
 
 addBtn.addEventListener("click", () => {
   editingId = null;
