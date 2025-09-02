@@ -1,11 +1,7 @@
-// Self-contained content script (no top-level import) to avoid ES module issues in MV3 content scripts.
+// Working content script - replace your debug version with this
 
 const SUPPORTED_SITES = [
-  "chat.openai.com",
-  "claude.ai",
-  "gemini.google.com",
-  "perplexity.ai",
-  "www.perplexity.ai"
+  "claude.ai"  // Start with just Claude since that's working
 ];
 
 const BUTTON_ID = "ai-context-manager-inline-button";
@@ -18,6 +14,7 @@ function siteSupported() {
 
 function ensureButton() {
   if (document.getElementById(BUTTON_ID)) return;
+  
   const btn = document.createElement("button");
   btn.id = BUTTON_ID;
   btn.textContent = "Context ▼";
@@ -34,7 +31,18 @@ function ensureButton() {
   btn.style.cursor = "pointer";
   btn.setAttribute("aria-label", "Open context menu");
   btn.addEventListener("click", toggleMenu);
-  document.body.appendChild(btn);
+  
+  if (document.body) {
+    document.body.appendChild(btn);
+    console.log("[AI Context Manager] Button added successfully!");
+  } else {
+    setTimeout(() => {
+      if (document.body) {
+        document.body.appendChild(btn);
+        console.log("[AI Context Manager] Button added (delayed)!");
+      }
+    }, 1000);
+  }
 }
 
 function toggleMenu() {
@@ -43,14 +51,15 @@ function toggleMenu() {
     existing.remove();
     return;
   }
-  // Request contexts from background
-  chrome.runtime.sendMessage({ type: "REQUEST_CONTEXTS" }, (ctxs) => {
+  
+  // Request contexts from background script
+  chrome.runtime.sendMessage({ type: "REQUEST_CONTEXTS" }, (contexts) => {
     if (chrome.runtime.lastError) {
       console.warn("[AI Context Manager] Message error:", chrome.runtime.lastError.message);
       renderMenu([]);
       return;
     }
-    renderMenu(Array.isArray(ctxs) ? ctxs : []);
+    renderMenu(Array.isArray(contexts) ? contexts : []);
   });
 }
 
@@ -76,25 +85,33 @@ function renderMenu(contexts) {
 
   if (contexts.length === 0) {
     const empty = document.createElement("div");
-    empty.textContent = "No contexts. Open the extension to add some.";
+    empty.textContent = "No contexts yet. Click the extension icon to add some.";
     empty.style.padding = "8px";
+    empty.style.color = "#aaa";
     menu.appendChild(empty);
   } else {
-    contexts.forEach(c => {
+    contexts.forEach(context => {
       const item = document.createElement("div");
-      item.textContent = c.title;
+      item.textContent = context.title;
       item.style.padding = "6px 8px";
       item.style.cursor = "pointer";
       item.style.borderRadius = "3px";
-      item.title = c.body.length > 200 ? c.body.slice(0, 200) + "…" : c.body;
+      item.title = context.body.length > 200 ? context.body.slice(0, 200) + "…" : context.body;
 
       item.addEventListener("click", () => {
-        injectText(c.body);
-        chrome.runtime.sendMessage({ type: "TOUCH_CONTEXT", id: c.id });
+        injectText(context.body);
+        // Update usage tracking
+        chrome.runtime.sendMessage({ type: "TOUCH_CONTEXT", id: context.id });
         menu.remove();
       });
-      item.addEventListener("mouseover", () => { item.style.background = "#444"; });
-      item.addEventListener("mouseout", () => { item.style.background = "transparent"; });
+      
+      item.addEventListener("mouseover", () => { 
+        item.style.background = "#444"; 
+      });
+      item.addEventListener("mouseout", () => { 
+        item.style.background = "transparent"; 
+      });
+      
       menu.appendChild(item);
     });
   }
@@ -115,6 +132,7 @@ function renderMenu(contexts) {
 
 function injectText(text) {
   const active = document.activeElement;
+  
   if (active && (active.tagName === "TEXTAREA" || active.isContentEditable)) {
     if (active.tagName === "TEXTAREA") {
       const start = active.selectionStart;
@@ -125,19 +143,65 @@ function injectText(text) {
       active.selectionStart = active.selectionEnd = start + text.length;
       active.dispatchEvent(new Event("input", { bubbles: true }));
     } else {
-      // ContentEditable
+      // ContentEditable (like Claude's input)
       try {
         document.execCommand("insertText", false, text);
-      } catch {
-        active.appendChild(document.createTextNode(text));
+      } catch (error) {
+        // Fallback
+        const textNode = document.createTextNode(text);
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(textNode);
+          range.setStartAfter(textNode);
+          range.setEndAfter(textNode);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } else {
+          active.appendChild(textNode);
+        }
       }
     }
+    
+    // Trigger any change events that the site might be listening for
+    active.dispatchEvent(new Event("input", { bubbles: true }));
+    active.dispatchEvent(new Event("change", { bubbles: true }));
+    
   } else {
-    navigator.clipboard.writeText(text).catch(() => {});
-    alert("Context copied to clipboard (focus an input to insert directly).");
+    // Fallback: copy to clipboard and alert
+    navigator.clipboard.writeText(text).then(() => {
+      // Create a temporary notification instead of alert
+      const notification = document.createElement("div");
+      notification.textContent = "Context copied to clipboard! Click in the input field to paste.";
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #333;
+        color: #fff;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        z-index: 2147483647;
+        max-width: 300px;
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
+    }).catch(() => {
+      alert("Context ready! Focus an input field to insert text.");
+    });
   }
 }
 
+// Initialize
 if (siteSupported()) {
-  ensureButton();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureButton);
+  } else {
+    ensureButton();
+  }
+  
+  // Backup timer
+  setTimeout(ensureButton, 2000);
 }
