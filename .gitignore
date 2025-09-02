@@ -1,0 +1,21 @@
+# Temporary files
+/tmp/
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Extension packaging
+*.zip
+*.crx
+*.pem
+
+# Logs
+*.log
