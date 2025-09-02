@@ -1,4 +1,4 @@
-// Enhanced debug content script - replace your content.js with this
+// Fixed content script - handles chrome.runtime availability issues
 
 const SUPPORTED_SITES = [
   "claude.ai"
@@ -8,23 +8,17 @@ const BUTTON_ID = "ai-context-manager-inline-button";
 const MENU_ID = "ai-context-manager-inline-menu";
 
 console.log("[AI Context Manager] Content script loading...");
+console.log("[AI Context Manager] chrome object:", typeof chrome);
+console.log("[AI Context Manager] chrome.runtime:", typeof chrome?.runtime);
 
 function siteSupported() {
   const host = window.location.host;
-  console.log("[AI Context Manager] Checking host:", host);
-  const supported = SUPPORTED_SITES.some(h => host.includes(h));
-  console.log("[AI Context Manager] Site supported:", supported);
-  return supported;
+  return SUPPORTED_SITES.some(h => host.includes(h));
 }
 
 function ensureButton() {
-  console.log("[AI Context Manager] ensureButton() called");
-  if (document.getElementById(BUTTON_ID)) {
-    console.log("[AI Context Manager] Button already exists");
-    return;
-  }
+  if (document.getElementById(BUTTON_ID)) return;
   
-  console.log("[AI Context Manager] Creating button...");
   const btn = document.createElement("button");
   btn.id = BUTTON_ID;
   btn.textContent = "Context ▼";
@@ -46,20 +40,17 @@ function ensureButton() {
     document.body.appendChild(btn);
     console.log("[AI Context Manager] Button added successfully!");
   } else {
-    console.log("[AI Context Manager] Body not ready, waiting...");
     setTimeout(() => {
       if (document.body) {
         document.body.appendChild(btn);
         console.log("[AI Context Manager] Button added (delayed)!");
-      } else {
-        console.error("[AI Context Manager] Could not find document.body after delay");
       }
     }, 1000);
   }
 }
 
 function toggleMenu() {
-  console.log("[AI Context Manager] toggleMenu() called - Button was clicked!");
+  console.log("[AI Context Manager] toggleMenu() called");
   
   const existing = document.getElementById(MENU_ID);
   if (existing) {
@@ -68,34 +59,38 @@ function toggleMenu() {
     return;
   }
   
-  console.log("[AI Context Manager] Requesting contexts from background...");
-  
-  // Test if chrome.runtime is available
-  if (!chrome.runtime) {
-    console.error("[AI Context Manager] chrome.runtime not available!");
+  // Check if chrome.runtime is available
+  if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+    console.error("[AI Context Manager] Chrome runtime not available, showing fallback menu");
     renderMenu([]);
     return;
   }
   
-  // Request contexts from background script
-  chrome.runtime.sendMessage({ type: "REQUEST_CONTEXTS" }, (contexts) => {
-    console.log("[AI Context Manager] Response received:", contexts);
-    
-    if (chrome.runtime.lastError) {
-      console.error("[AI Context Manager] Message error:", chrome.runtime.lastError.message);
-      renderMenu([]);
-      return;
-    }
-    
-    if (!Array.isArray(contexts)) {
-      console.warn("[AI Context Manager] Invalid contexts response:", contexts);
-      renderMenu([]);
-      return;
-    }
-    
-    console.log("[AI Context Manager] Rendering menu with", contexts.length, "contexts");
-    renderMenu(contexts);
-  });
+  console.log("[AI Context Manager] Requesting contexts from background...");
+  
+  try {
+    chrome.runtime.sendMessage({ type: "REQUEST_CONTEXTS" }, (contexts) => {
+      console.log("[AI Context Manager] Response received:", contexts);
+      
+      if (chrome.runtime.lastError) {
+        console.error("[AI Context Manager] Message error:", chrome.runtime.lastError.message);
+        renderMenu([]);
+        return;
+      }
+      
+      if (!Array.isArray(contexts)) {
+        console.warn("[AI Context Manager] Invalid contexts response:", contexts);
+        renderMenu([]);
+        return;
+      }
+      
+      console.log("[AI Context Manager] Rendering menu with", contexts.length, "contexts");
+      renderMenu(contexts);
+    });
+  } catch (error) {
+    console.error("[AI Context Manager] Error sending message:", error);
+    renderMenu([]);
+  }
 }
 
 function renderMenu(contexts) {
@@ -121,17 +116,30 @@ function renderMenu(contexts) {
   });
 
   if (contexts.length === 0) {
-    console.log("[AI Context Manager] No contexts, showing empty message");
+    console.log("[AI Context Manager] No contexts, showing message");
     const empty = document.createElement("div");
-    empty.textContent = "No contexts yet. Click the extension icon to add some.";
-    empty.style.padding = "8px";
-    empty.style.color = "#aaa";
+    
+    // Check if it's because chrome.runtime isn't available
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      empty.innerHTML = `
+        <div style="padding: 8px; color: #ff6666;">
+          Extension communication error.<br>
+          Try refreshing the page or reloading the extension.
+        </div>
+        <div style="padding: 8px; color: #aaa; font-size: 11px;">
+          If this persists, check the browser console for errors.
+        </div>
+      `;
+    } else {
+      empty.textContent = "No contexts yet. Click the extension icon to add some.";
+      empty.style.padding = "8px";
+      empty.style.color = "#aaa";
+    }
+    
     menu.appendChild(empty);
   } else {
     console.log("[AI Context Manager] Adding", contexts.length, "context items");
     contexts.forEach((context, index) => {
-      console.log("[AI Context Manager] Adding context", index, ":", context.title);
-      
       const item = document.createElement("div");
       item.textContent = context.title;
       item.style.padding = "6px 8px";
@@ -142,8 +150,16 @@ function renderMenu(contexts) {
       item.addEventListener("click", () => {
         console.log("[AI Context Manager] Context clicked:", context.title);
         injectText(context.body);
-        // Update usage tracking
-        chrome.runtime.sendMessage({ type: "TOUCH_CONTEXT", id: context.id });
+        
+        // Try to update usage tracking if chrome.runtime is available
+        if (chrome?.runtime?.sendMessage) {
+          try {
+            chrome.runtime.sendMessage({ type: "TOUCH_CONTEXT", id: context.id });
+          } catch (error) {
+            console.warn("[AI Context Manager] Could not update context usage:", error);
+          }
+        }
+        
         menu.remove();
       });
       
@@ -162,7 +178,6 @@ function renderMenu(contexts) {
   setTimeout(() => {
     const handler = (e) => {
       if (!menu.contains(e.target) && e.target.id !== BUTTON_ID) {
-        console.log("[AI Context Manager] Closing menu (outside click)");
         menu.remove();
         document.removeEventListener("mousedown", handler);
       }
@@ -170,19 +185,16 @@ function renderMenu(contexts) {
     document.addEventListener("mousedown", handler);
   }, 0);
 
-  console.log("[AI Context Manager] Adding menu to page");
   document.body.appendChild(menu);
 }
 
 function injectText(text) {
-  console.log("[AI Context Manager] injectText() called with:", text.substring(0, 50) + "...");
+  console.log("[AI Context Manager] injectText() called");
   
   const active = document.activeElement;
-  console.log("[AI Context Manager] Active element:", active?.tagName, active?.isContentEditable);
   
   if (active && (active.tagName === "TEXTAREA" || active.isContentEditable)) {
     if (active.tagName === "TEXTAREA") {
-      console.log("[AI Context Manager] Injecting into textarea");
       const start = active.selectionStart;
       const end = active.selectionEnd;
       const before = active.value.slice(0, start);
@@ -191,12 +203,11 @@ function injectText(text) {
       active.selectionStart = active.selectionEnd = start + text.length;
       active.dispatchEvent(new Event("input", { bubbles: true }));
     } else {
-      console.log("[AI Context Manager] Injecting into contentEditable");
+      // ContentEditable (like Claude's input)
       try {
         document.execCommand("insertText", false, text);
-        console.log("[AI Context Manager] execCommand succeeded");
       } catch (error) {
-        console.log("[AI Context Manager] execCommand failed, using fallback");
+        // Fallback
         const textNode = document.createTextNode(text);
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
@@ -216,12 +227,10 @@ function injectText(text) {
     // Trigger events
     active.dispatchEvent(new Event("input", { bubbles: true }));
     active.dispatchEvent(new Event("change", { bubbles: true }));
-    console.log("[AI Context Manager] Text injection completed");
     
   } else {
-    console.log("[AI Context Manager] No suitable input field, copying to clipboard");
+    // Fallback: copy to clipboard
     navigator.clipboard.writeText(text).then(() => {
-      console.log("[AI Context Manager] Copied to clipboard successfully");
       const notification = document.createElement("div");
       notification.textContent = "Context copied to clipboard! Click in the input field to paste.";
       notification.style.cssText = `
@@ -238,30 +247,23 @@ function injectText(text) {
       `;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
-    }).catch((error) => {
-      console.error("[AI Context Manager] Clipboard copy failed:", error);
+    }).catch(() => {
       alert("Context ready! Focus an input field to insert text.");
     });
   }
 }
 
 // Initialize
-console.log("[AI Context Manager] Initializing...");
 if (siteSupported()) {
-  console.log("[AI Context Manager] Site supported, setting up button");
-  if (document.readyState === 'loading') {
-    console.log("[AI Context Manager] DOM loading, waiting for DOMContentLoaded");
-    document.addEventListener('DOMContentLoaded', ensureButton);
-  } else {
-    console.log("[AI Context Manager] DOM ready, creating button immediately");
-    ensureButton();
-  }
+  // Wait a bit for the extension to fully load
+  setTimeout(() => {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ensureButton);
+    } else {
+      ensureButton();
+    }
+  }, 500);
   
   // Backup timer
-  setTimeout(() => {
-    console.log("[AI Context Manager] Backup timer triggered");
-    ensureButton();
-  }, 2000);
-} else {
-  console.log("[AI Context Manager] Site not supported, skipping initialization");
+  setTimeout(ensureButton, 2000);
 }
