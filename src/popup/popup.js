@@ -10,6 +10,34 @@ const saveBtn = document.getElementById("saveBtn");
 
 let editingId = null;
 
+// Helper function to copy text to clipboard with fallback
+async function copyToClipboard(text) {
+  try {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (err) {
+    // Fall through to fallback method
+  }
+  
+  // Fallback using execCommand
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return success;
+  } catch (err) {
+    return false;
+  }
+}
+
 // Message handling for content script
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "REQUEST_CONTEXTS") {
@@ -73,6 +101,31 @@ async function render() {
     const actions = document.createElement("div");
     actions.className = "item-actions";
     
+    // Copy button
+    const copyBtn = document.createElement("button");
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      
+      // Disable button and show feedback
+      copyBtn.disabled = true;
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "Copied!";
+      
+      try {
+        await copyToClipboard(ctx.body);
+      } catch (err) {
+        // Even if copy fails, we show feedback
+        console.warn("Copy failed:", err);
+      }
+      
+      // Restore button after 1200ms
+      setTimeout(() => {
+        copyBtn.disabled = false;
+        copyBtn.textContent = originalText;
+      }, 1200);
+    });
+    
     const editBtn = document.createElement("button");
     editBtn.textContent = "Edit";
     editBtn.addEventListener("click", () => {
@@ -91,6 +144,7 @@ async function render() {
       }
     });
     
+    actions.appendChild(copyBtn);
     actions.appendChild(editBtn);
     actions.appendChild(deleteBtn);
     title.appendChild(titleText);
