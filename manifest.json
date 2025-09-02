@@ -28,12 +28,14 @@
         "https://perplexity.ai/*",
         "https://www.perplexity.ai/*"
       ],
-      "js": ["src/content/content.js"]
+      "js": ["src/content/content.js"],
+      "run_at": "document_end"
     }
   ],
-  "icons": {
-    "16": "assets/icons/icon16.png",
-    "48": "assets/icons/icon48.png",
-    "128": "assets/icons/icon128.png"
-  }
+  "web_accessible_resources": [
+    {
+      "resources": ["src/storage/contexts.js", "src/common/constants.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
