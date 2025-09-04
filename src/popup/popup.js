@@ -1,14 +1,30 @@
 import { getContexts, addContext, updateContext, deleteContext } from "../storage/contexts.js";
+import { getCategories, addCategory, updateCategory, deleteCategory } from "../storage/categories.js";
 
 const listEl = document.getElementById("list");
 const addBtn = document.getElementById("addBtn");
+const categoriesBtn = document.getElementById("categoriesBtn");
+
+// Context editor elements
 const editorDialog = document.getElementById("editorDialog");
 const editorForm = document.getElementById("editorForm");
 const titleInput = document.getElementById("ctxTitle");
 const bodyInput = document.getElementById("ctxBody");
 
-let editingId = null;
+// Category management elements
+const categoryDialog = document.getElementById("categoryDialog");
+const addCategoryBtn = document.getElementById("addCategoryBtn");
+const categoryList = document.getElementById("categoryList");
 
+// Category editor elements
+const categoryEditorDialog = document.getElementById("categoryEditorDialog");
+const categoryEditorForm = document.getElementById("categoryEditorForm");
+const categoryNameInput = document.getElementById("categoryName");
+
+let editingId = null;
+let editingCategoryId = null;
+
+// Context management (existing functionality)
 addBtn.addEventListener("click", () => {
   editingId = null;
   titleInput.value = "";
@@ -21,13 +37,18 @@ editorForm.addEventListener("submit", async (e) => {
   const title = titleInput.value.trim();
   const body = bodyInput.value.trim();
   if (!title || !body) return;
-  if (editingId) {
-    await updateContext(editingId, { title, body });
-  } else {
-    await addContext({ title, body });
+  
+  try {
+    if (editingId) {
+      await updateContext(editingId, { title, body });
+    } else {
+      await addContext({ title, body });
+    }
+    editorDialog.close();
+    render();
+  } catch (error) {
+    alert("Error saving context: " + error.message);
   }
-  editorDialog.close();
-  render();
 });
 
 editorDialog.addEventListener("close", () => {
@@ -37,13 +58,51 @@ editorDialog.addEventListener("close", () => {
   }
 });
 
+// Category management (new functionality)
+categoriesBtn.addEventListener("click", () => {
+  categoryDialog.showModal();
+  renderCategories();
+});
+
+addCategoryBtn.addEventListener("click", () => {
+  editingCategoryId = null;
+  categoryNameInput.value = "";
+  categoryEditorDialog.showModal();
+});
+
+categoryEditorForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = categoryNameInput.value.trim();
+  if (!name) return;
+  
+  try {
+    if (editingCategoryId) {
+      await updateCategory(editingCategoryId, { name });
+    } else {
+      await addCategory({ name });
+    }
+    categoryEditorDialog.close();
+    renderCategories();
+  } catch (error) {
+    alert("Error saving category: " + error.message);
+  }
+});
+
+categoryEditorDialog.addEventListener("close", () => {
+  if (categoryEditorDialog.returnValue !== "default") {
+    categoryNameInput.value = "";
+  }
+});
+
 async function render() {
   const contexts = await getContexts();
   listEl.innerHTML = "";
+  
   if (contexts.length === 0) {
     listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#666;">No contexts yet. Click "+ Add" to create one.</div>`;
     return;
   }
+  
   contexts.forEach(ctx => {
     const item = document.createElement("div");
     item.className = "item";
@@ -88,6 +147,55 @@ async function render() {
     item.appendChild(titleBar);
     item.appendChild(preview);
     listEl.appendChild(item);
+  });
+}
+
+async function renderCategories() {
+  const categories = await getCategories();
+  categoryList.innerHTML = "";
+  
+  if (categories.length === 0) {
+    categoryList.innerHTML = `<div style="text-align:center; padding:20px; color:#666;">No categories yet. Click "+ New Category" to create one.</div>`;
+    return;
+  }
+  
+  categories.forEach(category => {
+    const item = document.createElement("div");
+    item.className = "category-item";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "category-name";
+    nameSpan.textContent = category.name;
+
+    const actions = document.createElement("div");
+    actions.className = "category-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => {
+      editingCategoryId = category.id;
+      categoryNameInput.value = category.name;
+      categoryEditorDialog.showModal();
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "Delete";
+    delBtn.addEventListener("click", async () => {
+      if (confirm(`Delete category "${category.name}"?`)) {
+        try {
+          await deleteCategory(category.id);
+          renderCategories();
+        } catch (error) {
+          alert("Error deleting category: " + error.message);
+        }
+      }
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+    item.appendChild(nameSpan);
+    item.appendChild(actions);
+    categoryList.appendChild(item);
   });
 }
 
