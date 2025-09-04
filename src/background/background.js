@@ -1,4 +1,5 @@
 import { getContexts, touchContext, addContext } from "../storage/contexts.js";
+import { getCategories } from "../storage/categories.js";
 import { STORAGE_KEY } from "../common/constants.js";
 
 // Seed a sample context on first install if none exist
@@ -20,6 +21,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "REQUEST_CONTEXTS") {
     getContexts().then((list) => sendResponse(list));
+    return true; // async
+  }
+  if (msg?.type === "REQUEST_CATEGORIES") {
+    getCategories().then((list) => sendResponse(list));
     return true; // async
   }
   if (msg?.type === "TOUCH_CONTEXT" && msg.id) {
