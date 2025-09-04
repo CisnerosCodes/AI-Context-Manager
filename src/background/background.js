@@ -1,34 +1,50 @@
 import { getContexts, touchContext, addContext } from "../storage/contexts.js";
 import { getCategories } from "../storage/categories.js";
-import { STORAGE_KEY } from "../common/constants.js";
 
-// Seed a sample context on first install if none exist
+// Centralized logging helper
+const LOG_PREFIX = "[AI Context Manager][BG]";
+
 chrome.runtime.onInstalled.addListener(async (details) => {
-  if (details.reason === "install") {
-    console.log("[AI Context Manager] Installed.");
-    const existing = await getContexts();
-    if (existing.length === 0) {
-      await addContext({
-        title: "Sample Context",
-        body: "Welcome! Edit or delete this sample, then add your own frequently used instructions."
-      });
-      console.log("[AI Context Manager] Seeded sample context.");
+  try {
+    if (details.reason === "install") {
+      console.log(`${LOG_PREFIX} Installed.`);
+      const existing = await getContexts();
+      if (existing.length === 0) {
+        await addContext({
+          title: "Sample Context",
+            body: "Welcome! Edit or delete this sample, then add your own frequently used instructions."
+        });
+        console.log(`${LOG_PREFIX} Seeded sample context.`);
+      }
     }
+  } catch (e) {
+    console.error(`${LOG_PREFIX} onInstalled error:`, e);
   }
 });
 
-// Central message handling so content script does NOT depend on popup being open
+// Handle messages
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg?.type === "REQUEST_CONTEXTS") {
-    getContexts().then((list) => sendResponse(list));
-    return true; // async
-  }
-  if (msg?.type === "REQUEST_CATEGORIES") {
-    getCategories().then((list) => sendResponse(list));
-    return true; // async
-  }
-  if (msg?.type === "TOUCH_CONTEXT" && msg.id) {
-    touchContext(msg.id).then(() => sendResponse({ ok: true }));
-    return true;
-  }
+  (async () => {
+    try {
+      if (msg?.type === "REQUEST_CONTEXTS") {
+        const list = await getContexts();
+        sendResponse(list);
+        return;
+      }
+      if (msg?.type === "REQUEST_CATEGORIES") {
+        const list = await getCategories();
+        sendResponse(list);
+        return;
+      }
+      if (msg?.type === "TOUCH_CONTEXT" && msg.id) {
+        await touchContext(msg.id);
+        sendResponse({ ok: true });
+        return;
+      }
+    } catch (e) {
+      console.error(`${LOG_PREFIX} Handler error for ${msg?.type}:`, e);
+      sendResponse({ error: true, message: e.message });
+    }
+  })();
+  return true; // keep channel open for async
 });
