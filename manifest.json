@@ -34,7 +34,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/storage/contexts.js", "src/common/constants.js"],
+      "resources": ["src/storage/contexts.js", "src/storage/categories.js", "src/common/constants.js"],
       "matches": ["<all_urls>"]
     }
   ]
