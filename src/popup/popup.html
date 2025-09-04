@@ -8,10 +8,14 @@
 <body>
   <header>
     <h1>Contexts</h1>
-    <button id="addBtn">+ Add</button>
+    <div class="header-buttons">
+      <button id="categoriesBtn">📁</button>
+      <button id="addBtn">+ Add</button>
+    </div>
   </header>
   <section id="list"></section>
 
+  <!-- Existing context editor dialog -->
   <dialog id="editorDialog">
     <form method="dialog" id="editorForm">
       <input type="text" id="ctxTitle" placeholder="Title" required />
@@ -19,6 +23,29 @@
       <menu>
         <button value="cancel">Cancel</button>
         <button id="saveBtn" value="default">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- New category management dialog -->
+  <dialog id="categoryDialog">
+    <div class="dialog-header">
+      <h3>Manage Categories</h3>
+      <button id="addCategoryBtn">+ New Category</button>
+    </div>
+    <section id="categoryList"></section>
+    <menu>
+      <button value="cancel">Close</button>
+    </menu>
+  </dialog>
+
+  <!-- New category editor dialog -->
+  <dialog id="categoryEditorDialog">
+    <form method="dialog" id="categoryEditorForm">
+      <input type="text" id="categoryName" placeholder="Category Name" required />
+      <menu>
+        <button value="cancel">Cancel</button>
+        <button id="saveCategoryBtn" value="default">Save</button>
       </menu>
     </form>
   </dialog>
