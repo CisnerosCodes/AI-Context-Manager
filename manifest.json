@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AI Context Manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Save, organize, and quickly inject reusable context snippets into AI chat interfaces.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "https://perplexity.ai/*",
@@ -23,6 +24,7 @@
     {
       "matches": [
         "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*",
         "https://perplexity.ai/*",
@@ -34,7 +36,11 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/storage/contexts.js", "src/storage/categories.js", "src/common/constants.js"],
+      "resources": [
+        "src/storage/contexts.js",
+        "src/storage/categories.js",
+        "src/common/constants.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
