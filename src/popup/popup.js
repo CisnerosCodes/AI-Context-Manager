@@ -51,11 +51,12 @@ editorForm.addEventListener("submit", async (e) => {
   }
 });
 
+// Fix dialog close handling
 editorDialog.addEventListener("close", () => {
-  if (editorDialog.returnValue !== "default") {
-    titleInput.value = "";
-    bodyInput.value = "";
-  }
+  // Always clear form when dialog closes, regardless of how it was closed
+  titleInput.value = "";
+  bodyInput.value = "";
+  editingId = null;
 });
 
 // Category management (new functionality)
@@ -88,10 +89,16 @@ categoryEditorForm.addEventListener("submit", async (e) => {
   }
 });
 
+// Fix category dialog close handling
 categoryEditorDialog.addEventListener("close", () => {
-  if (categoryEditorDialog.returnValue !== "default") {
-    categoryNameInput.value = "";
-  }
+  // Always clear form when dialog closes
+  categoryNameInput.value = "";
+  editingCategoryId = null;
+});
+
+// Handle category dialog close button
+categoryDialog.addEventListener("close", () => {
+  // Nothing special needed here, just closes
 });
 
 async function render() {
